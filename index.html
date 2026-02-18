@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ziw Framework Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }
+    h1 { margin-bottom: 0.25rem; }
+    h1 + p { color: #666; margin-top: 0; }
+    section { border: 1px solid #ddd; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem; }
+    section h2 { margin-top: 0; }
+    button { cursor: pointer; padding: 0.4rem 0.8rem; border: 1px solid #aaa; border-radius: 4px; background: #f5f5f5; }
+    button:hover { background: #e8e8e8; }
+    input[type="text"] { padding: 0.4rem; border: 1px solid #aaa; border-radius: 4px; }
+    .counter-display { display: inline-block; min-width: 2rem; text-align: center; font-weight: bold; font-size: 1.25rem; vertical-align: middle; }
+    ul { padding-left: 1.25rem; }
+    .status { margin-top: 0.5rem; color: #2a7ae2; font-style: italic; min-height: 1.4em; }
+    .nested-inner { border: 1px dashed #bbb; border-radius: 6px; padding: 1rem; margin-top: 0.75rem; }
+  </style>
+</head>
+<body>
+  <h1>Ziw Framework</h1>
+  <p>HTML-first. JS activates on interaction.</p>
+
+  <!-- 1. HelloWorld — eager (loads immediately on scan) -->
+  <section jscomponent="HelloWorld" jssrc="./components/hello-world.js">
+      <h2>Hello World</h2>
+      <button jsaction="greet">Say Hello</button>
+  </section>
+
+  <!-- 2. Counter — interaction (loads on first click, replays the click) -->
+  <section jscomponent="Counter" jssrc="./components/counter.js" jsload="interaction">
+    <h2>Counter</h2>
+    <button jsaction="decrement">&minus;</button>
+    <span class="counter-display" data-count>0</span>
+    <button jsaction="increment">+</button>
+  </section>
+
+  <!-- 3. Todo Input — visible (loads when scrolled into view) -->
+  <section jscomponent="TodoInput" jssrc="./components/todo-input.js" jsload="visible">
+    <h2>Todo List</h2>
+    <input type="text" jsaction="addTodo" placeholder="Add a todo&hellip;">
+    <button jsaction="addTodo">Add</button>
+    <ul></ul>
+  </section>
+
+  <!-- 4. Nested Components — idle (loads during idle time) -->
+  <section jscomponent="Outer" jssrc="./components/nested.js" jsload="idle">
+    <h2>Nested Components</h2>
+    <button jsaction="outerClick">Outer Action</button>
+    <p class="status" data-outer-status></p>
+
+    <div class="nested-inner" jscomponent="InnerWidget">
+      <strong>Inner Widget</strong>
+      <button jsaction="innerClick">Inner Action</button>
+      <!-- outerClick bubbles past InnerWidget up to Outer -->
+      <button jsaction="outerClick">Outer Action (from inside)</button>
+      <p class="status" data-inner-status></p>
+    </div>
+  </section>
+
+  <!-- Only the framework script — components are lazy-loaded -->
+  <script src="ziw.js"></script>
+</body>
+</html>
