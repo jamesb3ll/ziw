@@ -22,19 +22,22 @@
 </head>
 <body>
   <h1>Ziw Framework</h1>
-  <p>HTML-first. JS activates on interaction.</p>
+  <p>HTML-first JavaScript framework.<br />Tiny runtime, only when needed.</p>
 
   <!-- 1. HelloWorld — eager (loads immediately on scan) -->
   <section jscomponent="HelloWorld" jssrc="./components/hello-world.js">
       <h2>Hello World</h2>
       <button jsaction="greet">Say Hello</button>
+      <template jsif="showHelloWorld"><p>Hello World!!!</p></template>
+      <hr />
+      <p jsif="!showHelloWorld">Click the button</p>
   </section>
 
   <!-- 2. Counter — interaction (loads on first click, replays the click) -->
   <section jscomponent="Counter" jssrc="./components/counter.js" jsload="interaction">
     <h2>Counter</h2>
     <button jsaction="decrement">&minus;</button>
-    <span class="counter-display" data-count>0</span>
+    <span class="counter-display" jsdata="count">5</span>
     <button jsaction="increment">+</button>
   </section>
 
@@ -43,7 +46,11 @@
     <h2>Todo List</h2>
     <input type="text" jsaction="addTodo" placeholder="Add a todo&hellip;">
     <button jsaction="addTodo">Add</button>
-    <ul></ul>
+    <ul jsfor="items">
+      <li>Shopping</li>
+      <li>Reading</li>
+      <li>Coding</li>
+    </ul>
   </section>
 
   <!-- 4. Nested Components — idle (loads during idle time) -->

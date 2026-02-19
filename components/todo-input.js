@@ -1,24 +1,24 @@
 Ziw.register('TodoInput', {
+  state: { items: [] },
+
   actions: {
     addTodo: {
-      click: function (event, actionEl, componentEl) {
-        addItem(componentEl);
+      click: function (event, actionEl, compEl, { state, setState }) {
+        addItem(compEl, state, setState);
       },
-      keydown: function (event, actionEl, componentEl) {
+      keydown: function (event, actionEl, compEl, { state, setState }) {
         if (event.key === 'Enter') {
-          addItem(componentEl);
+          addItem(compEl, state, setState);
         }
       }
     }
   }
 });
 
-function addItem(componentEl) {
-  var input = componentEl.querySelector('input');
+function addItem(compEl, state, setState) {
+  var input = compEl.querySelector('input');
   var text = input.value.trim();
   if (!text) return;
-  var li = document.createElement('li');
-  li.textContent = text;
-  componentEl.querySelector('ul').appendChild(li);
+  setState({ items: state.items.concat(text) });
   input.value = '';
 }
