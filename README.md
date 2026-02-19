@@ -145,6 +145,38 @@ Both forms hydrate state from the HTML — no flash of incorrect content in eith
 <template jsif="!loggedIn"><p>Please log in.</p></template>
 ```
 
+### `jsattr-foo="key"`
+
+Sets an element attribute from a state key. Use any attribute name after the `jsattr-` prefix.
+
+```html
+<button jsattr-disabled="isLoading">Submit</button>
+<img jsattr-src="avatarUrl" jsattr-alt="avatarAlt">
+```
+
+- `false`, `null`, or `undefined` → attribute is removed
+- `true` → attribute is set with no value (correct for boolean attributes like `disabled`)
+- Any other value → attribute is set to `String(value)`
+
+**Hydration:** attribute bindings are output-only. Use `jsdata` or `jsbind` if you need to read a value from the HTML into state.
+
+### `jsbind="key"`
+
+Two-way binding for `<input>`, `<select>`, and `<textarea>`. Syncs the element's value to state on `input`/`change` events, and updates the element when state changes programmatically.
+
+```html
+<input type="text" jsbind="username">
+<input type="checkbox" jsbind="agreed">
+<select jsbind="country">
+  <option value="us">United States</option>
+  <option value="ca">Canada</option>
+</select>
+```
+
+Checkboxes and radios use `el.checked`; everything else uses `el.value`.
+
+**Hydration:** on init, Ziw reads the element's current value into state — the server-rendered value is the source of truth.
+
 ## Action bubbling
 
 Actions bubble through nested components. If `InnerWidget` doesn't handle an action, Ziw walks up to `Outer`:

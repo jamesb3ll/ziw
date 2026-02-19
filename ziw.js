@@ -12,6 +12,8 @@
  *   jsdata="key"        — binds element's textContent to a state key
  *   jsfor="key"         — repeats first child element for each item in a state array
  *   jsif="key"          — removes element when falsy, re-inserts when truthy (prefix ! to negate)
+ *   jsattr-foo="key"    — sets attribute foo from state; false/null removes it
+ *   jsbind="key"        — two-way binding: syncs input/select/textarea value to state
  *
  * JS API:
  *   Ziw.register('Name', {
@@ -53,6 +55,9 @@
 
   // WeakMap<Element, Array<{el, marker, key, negated, inDom}>> — jsif bindings per component.
   var ifBindingsStore = new WeakMap();
+
+  // WeakMap<Element, Array<{el, attr, key}>> — jsattr-* bindings per component.
+  var attrBindingsStore = new WeakMap();
 
   // Default event types installed eagerly so interaction-triggered
   // components can catch events before any JS registers.
@@ -315,9 +320,89 @@
       if (visible && !b.inDom) {
         b.marker.parentNode.insertBefore(b.el, b.marker);
         b.inDom = true;
+        // Refresh all bindings within the newly inserted element
+        updateBindings(b.el, state, null);
       } else if (!visible && b.inDom) {
         b.el.parentNode.removeChild(b.el);
         b.inDom = false;
+      }
+    }
+  }
+
+  /**
+   * On init, scan for jsattr-* attributes and build a flat list of
+   * { el, attr, key } bindings stored per component element.
+   */
+  function initAttrBindings(compEl) {
+    var bindings = [];
+    var all = compEl.querySelectorAll('*');
+    for (var i = 0; i < all.length; i++) {
+      var el = all[i];
+      if (!belongsToComponent(el, compEl)) continue;
+      var attrs = el.attributes;
+      for (var j = 0; j < attrs.length; j++) {
+        if (attrs[j].name.indexOf('jsattr-') === 0) {
+          bindings.push({ el: el, attr: attrs[j].name.slice(7), key: attrs[j].value });
+        }
+      }
+    }
+    attrBindingsStore.set(compEl, bindings);
+  }
+
+  /**
+   * Apply jsattr-* bindings for the given keys (or all keys if changedKeys is null).
+   * false/null/undefined removes the attribute; true sets it to ''; other values set it as a string.
+   */
+  function updateAttrBindings(compEl, state, changedKeys) {
+    var bindings = attrBindingsStore.get(compEl);
+    if (!bindings) return;
+    for (var i = 0; i < bindings.length; i++) {
+      var b = bindings[i];
+      if (changedKeys && changedKeys.indexOf(b.key) === -1) continue;
+      var value = state[b.key];
+      if (value === false || value === null || value === undefined) {
+        b.el.removeAttribute(b.attr);
+      } else {
+        b.el.setAttribute(b.attr, value === true ? '' : String(value));
+      }
+    }
+  }
+
+  /**
+   * Hydrate state from server-rendered [jsbind] input values.
+   * Reads el.value (or el.checked for checkboxes/radios) into state.
+   */
+  function hydrateInputBindings(compEl, state) {
+    var keys = Object.keys(state);
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      var els = compEl.querySelectorAll('[jsbind="' + key + '"]');
+      for (var j = 0; j < els.length; j++) {
+        var el = els[j];
+        if (!belongsToComponent(el, compEl)) continue;
+        state[key] = (el.type === 'checkbox' || el.type === 'radio') ? el.checked : el.value;
+        break; // First matching element wins.
+      }
+    }
+  }
+
+  /**
+   * Sync [jsbind] input values from state for the given keys (or all keys).
+   * Called after programmatic setState so the input reflects the new value.
+   */
+  function updateInputBindings(compEl, state, changedKeys) {
+    var keys = changedKeys || Object.keys(state);
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      var els = compEl.querySelectorAll('[jsbind="' + key + '"]');
+      for (var j = 0; j < els.length; j++) {
+        var el = els[j];
+        if (!belongsToComponent(el, compEl)) continue;
+        if (el.type === 'checkbox' || el.type === 'radio') {
+          el.checked = !!state[key];
+        } else {
+          el.value = state[key];
+        }
       }
     }
   }
@@ -333,10 +418,14 @@
     var state = deepClone(def.state);
     instanceStore.set(compEl, { state: state, prev: null });
     initForBindings(compEl);
+    initAttrBindings(compEl);
     hydrateForBindings(compEl, state);
     hydrateBindings(compEl, state);
+    hydrateInputBindings(compEl, state);
     initIfBindings(compEl, state);
     updateBindings(compEl, state, null);
+    updateAttrBindings(compEl, state, null);
+    updateInputBindings(compEl, state, null);
 
     if (typeof def.init === 'function') {
       def.init(compEl, state);
@@ -372,9 +461,11 @@
       instance.prev = prev;
 
       if (changedKeys.length > 0) {
-        updateBindings(compEl, current, changedKeys);
-        updateForBindings(compEl, current, changedKeys);
         updateIfBindings(compEl, current, changedKeys);
+        updateBindings(compEl, current, changedKeys);
+        updateAttrBindings(compEl, current, changedKeys);
+        updateForBindings(compEl, current, changedKeys);
+        updateInputBindings(compEl, current, changedKeys);
       }
 
       if (typeof def.update === 'function') {
@@ -548,6 +639,30 @@
     var eventType = event.type;
     var el = event.target;
 
+    // Handle jsbind two-way input bindings.
+    if ((eventType === 'input' || eventType === 'change') &&
+        el.getAttribute && el.hasAttribute('jsbind')) {
+      var bindKey = el.getAttribute('jsbind');
+      var ancestor = el.parentElement;
+      while (ancestor && ancestor !== document) {
+        if (ancestor.hasAttribute('jscomponent')) {
+          var bindInstance = instanceStore.get(ancestor);
+          if (bindInstance) {
+            var bindDef = componentRegistry.get(ancestor.getAttribute('jscomponent'));
+            if (bindDef) {
+              var bindValue = (el.type === 'checkbox' || el.type === 'radio') ? el.checked : el.value;
+              var patch = {};
+              patch[bindKey] = bindValue;
+              makeSetState(ancestor, bindDef)(patch);
+            }
+          }
+          break;
+        }
+        ancestor = ancestor.parentElement;
+      }
+      // Don't return — allow normal jsaction dispatch to continue if present.
+    }
+
     // Outer walk: find jsaction elements from target upward.
     while (el && el !== document) {
       var actionName = el.getAttribute && el.getAttribute('jsaction');
@@ -649,6 +764,6 @@
   window.Ziw = {
     register,
     scan,
-    // destroy,
+    destroy,
   };
 })();

@@ -53,7 +53,15 @@
     </ul>
   </section>
 
-  <!-- 4. Nested Components — idle (loads during idle time) -->
+  <!-- 4. Contact Form — interaction (covers jsbind + jsattr) -->
+  <section jscomponent="ContactForm" jssrc="./components/contact-form.js" jsload="interaction">
+    <h2>Contact</h2>
+    <input type="text" jsbind="name" placeholder="Your name&hellip;">
+    <button jsaction="submit" jsattr-disabled="submitted">Send</button>
+    <template jsif="submitted"><p>Thanks, <span jsdata="name"></span>!</p></template>
+  </section>
+
+  <!-- 5. Nested Components — idle (loads during idle time) -->
   <section jscomponent="Outer" jssrc="./components/nested.js" jsload="idle">
     <h2>Nested Components</h2>
     <button jsaction="outerClick">Outer Action</button>
